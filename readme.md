@@ -1,5 +1,7 @@
 C++ Deep Learning Engine
 
+<img width="1917" height="1080" alt="Image" src="https://github.com/user-attachments/assets/e9dbfaab-2527-44e7-b809-f8e9239cff0b" />
+
 "What if we didn't use PyTorch or TensorFlow? 
 
 This project is a fully functional Convolutional Neural Network (CNN) library written entirely in C++ without any machine learning frameworks.
