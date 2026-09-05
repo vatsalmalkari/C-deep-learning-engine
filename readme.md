@@ -1,17 +1,14 @@
 
-<<<<<<< Updated upstream
 <img width="1917" height="1080" alt="Image" src="https://github.com/user-attachments/assets/e9dbfaab-2527-44e7-b809-f8e9239cff0b" />
 
-"What if we didn't use PyTorch or TensorFlow? 
-=======
+
 ------------------------------
 ## Custom C++ Deep Learning Engine
-"What if we didn't use PyTorch or TensorFlow?"
+
 This project is a lightweight, fully functional Convolutional Neural Network (CNN) framework 
 written entirely from  scratch in C++. It features a custom Automatic Differentiation (Autograd) graph engine, 
 an optimized custom Memory Arena Allocator, specialized neural network layers, 
 and a  cross-entropy mathematical loss layout—all implemented without standard machine learning libraries.
->>>>>>> Stashed changes
 
 ## How to Start: Run the Webcam Demo
 You don't need to wait for a full training cycle to see the AI in action. I have included a pre-trained model under models/fer_model.bin that you can run immediately using Python for camera streaming.
@@ -25,7 +22,10 @@ Execute the script from the root directory:
 
 python examples/run_webcam.py
 
-What happens? A camera window will open, detect facial boundaries across multiple people simultaneously, and execute your model's weights to classify expressions into emotions in real-time.
+What happens? 
+
+A camera window will open, detect facial boundaries across multiple people simultaneously, and execute your model's weights to classify expressions into emotions in real-time.
+
 ------------------------------
 ##  Training the AI in C++
 Follow these steps to feed raw data into the custom engine and watch it learn from scratch.
@@ -46,7 +46,9 @@ clang++ -std=c++17 -O3 -ffast-math -Iinclude examples/train.cpp src/*.cpp -o tra
 
 ./train_network
 
-What happens? The system initializes a 512 MB Transient Memory Arena to lock activations. As the loops execute, the loss drops consistently and training/validation accuracy metrics climb, culminating in an exported fer_model.bin payload file.
+What happens? 
+The system initializes a 512 MB Transient Memory Arena to lock activations. As the loops execute, the loss drops consistently and training/validation accuracy metrics climb, culminating in an exported fer_model.bin payload file.
+
 ------------------------------
 ## How it Works: Building the Blueprint
 
