@@ -5,6 +5,7 @@
 #include <functional>
 #include <stdexcept>
 
+// === KEEP THE CONSTRUCTOR ===
 Linear::Linear(std::size_t in_features, std::size_t out_features, std::size_t seed)
     : _in_features(in_features), _out_features(out_features)
 {
@@ -29,57 +30,56 @@ Linear::Linear(std::size_t in_features, std::size_t out_features, std::size_t se
 
 void Linear::reset_parameters() {}
 
+// === KEEP ONLY THE UPDATED FORWARD PASS (WITH MICRO-OPTIMIZATION) ===
 std::shared_ptr<Tensor> Linear::forward(std::shared_ptr<Tensor> input)
 {
-    // Input is flattened 
     if (input->numel() != _in_features) {
          throw std::runtime_error("Linear input size mismatch. Expected " + 
              std::to_string(_in_features) + " but got " + std::to_string(input->numel()));
     }
 
-    // Prepare Output
     std::vector<float> out(_out_features);
-    const auto& in_data = input->data();
-    const auto& w_data = _weight->data();
-    const auto& b_data = _bias->data();
+    const auto* in_data = input->data();
+    const auto* w_data = _weight->data();
+    const auto* b_data = _bias->data();
 
-    // Forward Pass: Y = W * X + B. W as [Out, In] to dot-product the rows
+    // Forward Pass: Y = W * X + B
     for (size_t i = 0; i < _out_features; i++) {
         float sum = b_data[i];
         for (size_t j = 0; j < _in_features; j++) {
-            
             sum += w_data[i * _in_features + j] * in_data[j];
         }
         out[i] = sum;
     }
 
-    // Backward Pass
-    if (input->requires_grad()) {
+    // Fix: Require gradients if ANY tracking is active (Weights or Input)
+    bool requires_any_grad = input->requires_grad() || _weight->requires_grad() || _bias->requires_grad();
 
+    if (requires_any_grad) {
         std::vector<std::shared_ptr<Tensor>> parents = {input, _weight, _bias};
         
-        // gradients by value/shared_ptr
-        std::function<void(const std::vector<float>&)> gradfn = [input, weight=_weight, bias=_bias, in_f=_in_features, out_f=_out_features]
+        auto gradfn = [input, weight=_weight, bias=_bias, in_f=_in_features, out_f=_out_features]
             (const std::vector<float>& grad_output) 
         {
             std::vector<float> grad_input(in_f, 0.0f);
             std::vector<float> grad_weight(weight->numel(), 0.0f);
-          
+            
+            // Optimized: Direct assignment for bias gradient instead of += inside loop
             std::vector<float> grad_bias = grad_output; 
             
-            const auto& in_vals = input->data();
-            const auto& w_vals = weight->data();
+            const auto* in_vals = input->data();
+            const auto* w_vals = weight->data();
 
             for (size_t i = 0; i < out_f; i++) {
                 float g = grad_output[i];
+                size_t row_offset = i * in_f;
                 
                 for (size_t j = 0; j < in_f; j++) {
-                    // dL/dW_ij = input_j * grad_output_i
-                    grad_weight[i * in_f + j] = in_vals[j] * g;
+                    // Accumulate weight gradients correctly
+                    grad_weight[row_offset + j] += in_vals[j] * g;
 
-                    // dL/dX_j += W_ij * grad_output_i
-                    // This sends the gradient back to the CNN!
-                    grad_input[j] += w_vals[i * in_f + j] * g;
+                    // Accumulate input gradients back down the computation graph
+                    grad_input[j] += w_vals[row_offset + j] * g;
                 }
             }
             

@@ -7,7 +7,13 @@
 std::shared_ptr<Tensor> Relu::forward(std::shared_ptr<Tensor> input)
 {
     // Access raw flat data (works for 1D, 2D, 3D, 4D)
-    const std::vector<float>& in_data = input->data();
+    const float* input_ptr = input->data();
+    std::size_t input_size = 1;
+    for (const auto& dim : input->shape())
+    {
+        input_size *= static_cast<std::size_t>(dim);
+    }
+    std::vector<float> in_data(input_ptr, input_ptr + input_size);
     std::vector<float> out_data;
     out_data.reserve(in_data.size());
 
@@ -25,7 +31,13 @@ std::shared_ptr<Tensor> Relu::forward(std::shared_ptr<Tensor> input)
         std::function<void(const std::vector<float> &)> gradfn =
             [input](const std::vector<float> &grad_output)
         {
-            const std::vector<float>& input_vals = input->data();
+            const float* input_ptr = input->data();
+            std::size_t input_size = 1;
+            for (const auto& dim : input->shape())
+            {
+                input_size *= static_cast<std::size_t>(dim);
+            }
+            std::vector<float> input_vals(input_ptr, input_ptr + input_size);
             std::vector<float> grad_input;
             grad_input.reserve(grad_output.size());
 

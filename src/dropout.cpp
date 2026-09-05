@@ -1,8 +1,8 @@
 #include "../include/dropout.h"
 #include "../include/tensor.h"
-#include <random>
 #include <algorithm>
 #include <vector>
+#include <cstdlib>
 
 Dropout::Dropout(float rate) : rate(rate), is_training(true) {}
 
@@ -12,46 +12,48 @@ std::shared_ptr<Tensor> Dropout::forward(std::shared_ptr<Tensor> input) {
         return input;
     }
 
-    //Generate Mask
+    // Generate Mask
     float scale = 1.0f / (1.0f - rate);
     
-    static std::mt19937 gen(1234); 
-    std::bernoulli_distribution d(1.0f - rate);
+    // Seed rand() once statically
+    static bool seed_once = []() {
+        std::srand(1234); 
+        return true;
+    }();
 
-    const auto& in_data = input->data(); 
-    std::vector<float> out_data;
-    out_data.reserve(in_data.size());
+    // Calculate probability threshold
+    float p = 1.0f - rate;
+
+    const float* in_data = input->data();
+    std::size_t numel = input->size();
     
-    std::vector<float> mask_vec; 
-    mask_vec.reserve(in_data.size());
+    std::vector<float> out_data(numel);
+    std::vector<float> mask_vec(numel);
 
-    //  Forward Pass
-    for (float val : in_data) {
-        if (d(gen)) {
-            out_data.push_back(val * scale);
-            mask_vec.push_back(scale);
+    // Forward Pass - evaluate probability per element
+    for (std::size_t i = 0; i < numel; ++i) {
+        bool keep = ((float)std::rand() / (float)RAND_MAX) < p;
+        
+        if (keep) {
+            out_data[i] = in_data[i] * scale;
+            mask_vec[i] = scale;
         } else {
-            out_data.push_back(0.0f);
-            mask_vec.push_back(0.0f);
+            out_data[i] = 0.0f;
+            mask_vec[i] = 0.0f;
         }
     }
 
     // Gradient Function
     auto grad_fn = [input, mask_vec](const std::vector<float>& grad_output) {
-        
-        std::vector<float> grad_input;
-        grad_input.reserve(grad_output.size());
-
-        // Chain Rule: d(Input) = d(Output) * Mask
-        for (size_t i = 0; i < grad_output.size(); ++i) {
-            grad_input.push_back(grad_output[i] * mask_vec[i]);
+        std::vector<float> grad_input(grad_output.size());
+        for (std::size_t i = 0; i < grad_output.size(); ++i) {
+            grad_input[i] = grad_output[i] * mask_vec[i];
         }
-
-      
         input->add_to_grad(grad_input);
     };
     
-    auto result = std::make_shared<Tensor>(
+    // Renamed this to output_tensor to avoid naming conflict
+    auto output_tensor = std::make_shared<Tensor>(
         out_data,             
         input->shape(),        
         input->requires_grad(),
@@ -59,5 +61,5 @@ std::shared_ptr<Tensor> Dropout::forward(std::shared_ptr<Tensor> input) {
         std::vector<std::shared_ptr<Tensor>>{input} 
     );
 
-    return result;
+    return output_tensor;
 }

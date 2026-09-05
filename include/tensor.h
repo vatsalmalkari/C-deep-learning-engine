@@ -1,98 +1,146 @@
 #pragma once
-#include <vector>
+
+
+#include <cstring>
 #include <functional>
+#include <memory>
+#include <ostream>
+#include <stdexcept>
+#include <vector>
 
-
+#include "../include/arena_wrapper.h"
 
 class Tensor : public std::enable_shared_from_this<Tensor>
 {
-    private:
-    std::vector<float> _data;
-    std:: vector<std::size_t> _shape;
-    std:: vector<std::size_t> _stride;
-    std::vector<float> _grad;
+private:
+    // Contiguous tensor data
+    float* _data = nullptr;
+    std::size_t _size = 0;
+
+    // Tensor metadata
+    std::vector<std::size_t> _shape;
+    std::vector<std::size_t> _stride;
+
+    // Autograd
     bool _requires_grad = false;
-    std::function<void(const std::vector<float> &)> _gradfn;
+    std::vector<float> _grad;
+    std::function<void(const std::vector<float>&)> _gradfn;
     std::vector<std::shared_ptr<Tensor>> _parents;
-    void _backward();
     bool _visited = false;
-    void _reset_graph_visit();
 
-    public:
-    Tensor(float data, bool requires_grad = false, 
-       std::function<void(const std::vector<float> &)> gradfn = {}, 
-       std::vector<std::shared_ptr<Tensor>> parents = {});
-       
+    // Memory allocator (pointer to external allocator)
+    ArenaAllocator* _allocator = nullptr;
 
-    Tensor(std::vector<float> data, bool requires_grad = false, 
-        std::function<void(const std::vector<float> &)> gradfn = {}, 
-        std::vector<std::shared_ptr<Tensor>> parents = {});
+public:
+    // ========== CONSTRUCTORS ==========
 
-    Tensor(std::vector<std::vector<float>> data, bool requires_grad = false, 
-        std::function<void(const std::vector<float> &)> gradfn = {}, 
-        std::vector<std::shared_ptr<Tensor>> parents = {});
-
-    Tensor(std::vector<std::vector<std::vector<float>>> data, bool requires_grad = false,
-        std::function<void(const std::vector<float> &)> gradfn = {},
-        std::vector<std::shared_ptr<Tensor>> parents = {});
-
-    Tensor(std::vector<std::vector<std::vector<std::vector<float>>>> data,
-       bool requires_grad = false,
-       std::function<void(const std::vector<float>&)> gradfn = {},
-       std::vector<std::shared_ptr<Tensor>> parents = {});
-
-    Tensor(std::vector<float> data, 
-           std::vector<std::size_t> shape, 
-           bool requires_grad = false, 
-           std::function<void(const std::vector<float> &)> gradfn = {}, 
+    // Scalar
+    Tensor(float data,
+           bool requires_grad = false,
+           std::function<void(const std::vector<float>&)> gradfn = nullptr,
            std::vector<std::shared_ptr<Tensor>> parents = {});
 
-    const float &item() const;
-    float &item();
-    const float &operator()(std::size_t i) const;
-    float &operator()(std::size_t i);
-    const float &operator()(std::size_t i, std::size_t j) const;
-    float &operator()(std::size_t i, std::size_t j);
-    const std::vector<std::size_t> &shape() const;
-    const std::vector<std::size_t> &stride() const;
-    const bool &requires_grad() const;
-    const std::vector<float> &grad() const;
-    void add_to_grad(const std::vector<float> &grad_update);
-    void zero_grad();
-    std::size_t numel() const;
-    std::vector<float> &data();
-    void backward();
-    std::shared_ptr<Tensor> operator+(std::shared_ptr<Tensor> other);
-    std::shared_ptr<Tensor> operator*(std::shared_ptr<Tensor> other);
+    // 1D vector
+    Tensor(const std::vector<float>& data,
+           bool requires_grad = false,
+           std::function<void(const std::vector<float>&)> gradfn = nullptr,
+           std::vector<std::shared_ptr<Tensor>> parents = {});
+
+    // 2D matrix
+    Tensor(const std::vector<std::vector<float>>& data,
+           bool requires_grad = false,
+           std::function<void(const std::vector<float>&)> gradfn = nullptr,
+           std::vector<std::shared_ptr<Tensor>> parents = {});
+
+    // Flat data + explicit shape
+    Tensor(const std::vector<float>& data,
+           const std::vector<std::size_t>& shape,
+           bool requires_grad = false,
+           std::function<void(const std::vector<float>&)> gradfn = nullptr,
+           std::vector<std::shared_ptr<Tensor>> parents = {});
+
+    // Shape-only tensor with optional allocator
+    Tensor(const std::vector<std::size_t>& shape,
+           ArenaAllocator* allocator = nullptr,
+           bool requires_grad = false);
+
+    // Data + shape + optional allocator
+    Tensor(const std::vector<float>& data,
+           const std::vector<std::size_t>& shape,
+           ArenaAllocator* allocator,
+           bool requires_grad = false);
+
+    // Deprecated compatibility constructor
+    Tensor(const std::vector<std::size_t>& shape,
+           bool requires_grad);
+
+    ~Tensor();
+
+    // ========== ACCESSORS ==========
+
+    const std::vector<std::size_t>& shape() const { return _shape; }
+    const std::vector<std::size_t>& stride() const { return _stride; }
+
+    std::size_t size() const { return _size; }
+    std::size_t numel() const { return _size; }
+
+    float* data() { return _data; }
+    const float* data() const { return _data; }
+
+    const std::vector<float>& grad() const { return _grad; }
+
+    bool requires_grad() const { return _requires_grad; }
+
+    // ========== ELEMENT ACCESS ==========
+
+    float item() const;
+    float& item();
+
+    float& operator()(std::size_t i);
+    const float& operator()(std::size_t i) const;
+
+    float& operator()(std::size_t i, std::size_t j);
+    const float& operator()(std::size_t i, std::size_t j) const;
+
     std::size_t argmax() const;
-    
-    // 3D access
-float& operator()(size_t i, size_t j, size_t k) {
-    size_t H = _shape[1];
-    size_t W = _shape[2];
-    return _data[i*H*W + j*W + k];
-}
 
-const float& operator()(size_t i, size_t j, size_t k) const {
-    size_t H = _shape[1];
-    size_t W = _shape[2];
-    return _data[i*H*W + j*W + k];
-}
+    // ========== AUTOGRAD ==========
 
-// 4D access
-float& operator()(size_t i, size_t j, size_t k, size_t l) {
-    size_t C = _shape[1];
-    size_t H = _shape[2];
-    size_t W = _shape[3];
-    return _data[i*C*H*W + j*H*W + k*W + l];
-}
+    void zero_grad();
 
-const float& operator()(size_t i, size_t j, size_t k, size_t l) const {
-    size_t C = _shape[1];
-    size_t H = _shape[2];
-    size_t W = _shape[3];
-    return _data[i*C*H*W + j*H*W + k*W + l];
-}
+    void add_to_grad(const std::vector<float>& grad_update);
 
-    friend std::ostream &operator<<(std::ostream &os, const Tensor &obj);
+    void backward();
+
+    void set_grad_fn(
+        std::function<void(const std::vector<float>&)> gradfn)
+    {
+        _gradfn = gradfn;
+    }
+
+    void set_parents(
+        const std::vector<std::shared_ptr<Tensor>>& parents)
+    {
+        _parents = parents;
+    }
+
+    std::shared_ptr<Tensor> operator+(
+        std::shared_ptr<Tensor> other);
+
+    std::shared_ptr<Tensor> operator*(
+        std::shared_ptr<Tensor> other);
+
+private:
+    // Memory management
+    void _allocate_data(std::size_t size);
+    void _copy_data(const float* src, std::size_t size);
+
+    // Shape/stride management
+    void _initialize_strides();
+
+    // Autograd graph traversal
+    void _backward();
+    void _reset_graph_visit();
 };
+
+std::ostream& operator<<(std::ostream& os, const Tensor& obj);

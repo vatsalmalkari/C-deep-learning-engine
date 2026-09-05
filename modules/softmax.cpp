@@ -7,7 +7,7 @@
 
 std::shared_ptr<Tensor> Softmax::forward(std::shared_ptr<Tensor> input)
 {
-    const std::vector<float>& in_data = input->data();
+    const float* in_data = input->data();
     std::size_t numel = input->numel();
 
     if (input->shape().empty() || (input->shape().size() == 1 && numel == 1))

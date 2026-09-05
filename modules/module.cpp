@@ -79,6 +79,12 @@ void Module::load_state_dict(std::unordered_map<std::string, std::shared_ptr<Ten
         {
             throw std::runtime_error("Parameter '" + p.first + "' has different shape in state_dict");
         }
-        p.second->data() = stored_param->data();
+
+        // Copy underlying data elements
+        float* dst = p.second->data();           
+        const float* src = stored_param->data();
+        std::size_t num_elements = p.second->size();
+
+        std::copy(src, src + num_elements, dst);
     }
 }

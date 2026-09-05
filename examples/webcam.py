@@ -42,7 +42,7 @@ def load_and_run():
     print("Loading fer_model.bin") # this is the main model i used feel free to use any
     
     tensors = []
-    with open("fer_model.bin", "rb") as f:
+    with open("models/fer_model.bin", "rb") as f:
         
         count_bytes = f.read(8)
         if not count_bytes:
