@@ -34,7 +34,7 @@ Follow these steps to feed raw data into the custom engine and watch it learn fr
 Download the FER-2013 dataset (Facial Expression Recognition) from Kaggle.
 Create a data/ folder in the project root directory.
 Extract and place fer2013.csv directly inside that data/ folder.
-(For convenience I have already added it)
+https://www.kaggle.com/datasets/msambare/fer2013
 
 ## 2. Compile the Engine
 We compile using Apple Clang with aggressive -O3 vectorizations and the -ffast-math optimization flag to instruct your CPU hardware to maximize floating-point math efficiency.
@@ -162,7 +162,5 @@ run_webcam.py: A deployment wrapper written in Python. It accesses your camera s
 
 
 
-<<<<<<< Updated upstream
 **Note: this is still slower than using tensorflow and pytorch to build a cnn in python as those libraries are also written is c++ but uses specialized GPUs and other hardware to compute large data quickly**
-=======
->>>>>>> Stashed changes
+
